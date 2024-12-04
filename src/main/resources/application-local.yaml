@@ -1,3 +1,5 @@
+server:
+  shutdown: immediate  # local 파드 교체 등이 필요치 않아서 종료 오래 걸릴수 있어서 즉시 종료로 변경
 spring:
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver

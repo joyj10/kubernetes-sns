@@ -1,1 +1,2 @@
-spring.application.name=feed-server
+server:
+  shutdown: graceful  # 서버가 내려갈때 즉시 내려가는게 아니라 리소스 정리, 들어온 요청 등은 처리하고 종료 됨

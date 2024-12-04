@@ -1,0 +1,54 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: feed-server
+  namespace: sns
+spec:
+  replicas: 2
+  strategy:
+    type: RollingUpdate
+  selector:
+    matchLabels:
+      app: feed-server
+  template:
+    metadata:
+      labels:
+        app: feed-server
+    spec:
+      containers:
+        - name: feed-container
+          image: 638597541124.dkr.ecr.ap-northeast-2.amazonaws.com/feed-server:0.0.1
+          env: # config 별도 분리 가능
+            - name: SPRING_PROFILES_ACTIVE
+              value: dev
+          envFrom:
+            - configMapRef:
+                name: mysql-config
+            - secretRef:
+                name: mysql-secret
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "500m"   # 0.5 core
+            limits:   # 서버가 띄다가 죽거나 너무 느리게 뜨면 조정
+              memory: "1Gi"
+              cpu: "1000m"
+          lifecycle:
+            preStop:
+              exec:
+                command: ["/bin/sh","-c","sleep 10"]  # 파드 정리 시 정리하는 시간 10초 정도 추가(업데이트가 느려지지만 안정적으로 교체됨)
+          readinessProbe:
+            httpGet:
+              path: /healthcheck/ready
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 1
+            successThreshold: 1
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /healthcheck/live
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 1
+            failureThreshold: 7   # 연속 실패 최대 횟수, 도달 시 쿠버네티스가 컨테이너 재시작 함
