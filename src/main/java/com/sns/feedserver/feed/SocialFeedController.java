@@ -6,6 +6,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.ArrayList;
 import java.util.List;
 
 @RestController
@@ -16,8 +17,14 @@ public class SocialFeedController {
     private final SocialFeedService feedService;
 
     @GetMapping
-    public List<SocialFeed> getAllFeeds() {
-        return feedService.getAllFeeds();
+    public List<FeedInfo> getAllFeeds() {
+        List<SocialFeed> allFeeds = feedService.getAllFeeds();
+        return allFeeds.stream()
+                .map(feed -> {
+                    UserInfo user = feedService.getUserInfo(feed.getUploaderId());
+                    return new FeedInfo(feed, user.getUsername());
+                })
+                .toList();
     }
 
     @GetMapping("/user/{userId}")
@@ -46,4 +53,6 @@ public class SocialFeedController {
         SocialFeed createdFeed = feedService.createFeed(feed);
         return ResponseEntity.status(HttpStatus.CREATED).body(createdFeed);
     }
+
+
 }
