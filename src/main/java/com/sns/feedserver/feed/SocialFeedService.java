@@ -1,9 +1,12 @@
 package com.sns.feedserver.feed;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatusCode;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestClient;
@@ -15,6 +18,8 @@ import java.util.List;
 @Transactional(readOnly = true)
 public class SocialFeedService {
     private final SocialFeedRepository feedRepository;
+    private final KafkaTemplate<String, String> kafkaTemplate;
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Value("${sns.user-server}")
     private String userServerUrl;
@@ -40,7 +45,26 @@ public class SocialFeedService {
 
     @Transactional
     public SocialFeed createFeed(FeedRequest feed) {
-        return feedRepository.save(new SocialFeed(feed));
+        SocialFeed savedFeed = feedRepository.save(new SocialFeed(feed));
+        sendFeedToKafka(savedFeed);
+        return savedFeed;
+    }
+
+    public void refreshAllFeeds() {
+        List<SocialFeed> feeds = getAllFeeds();
+        for (SocialFeed feed : feeds) {
+            sendFeedToKafka(feed);
+        }
+    }
+
+    private void sendFeedToKafka(SocialFeed feed) {
+        UserInfo uploader = getUserInfo(feed.getUploaderId());
+        FeedInfo feedInfo = new FeedInfo(feed, uploader.getUsername());
+        try {
+            kafkaTemplate.send("feed.created", objectMapper.writeValueAsString(feedInfo));
+        } catch (JsonProcessingException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     public UserInfo getUserInfo(int userId) {
@@ -51,6 +75,5 @@ public class SocialFeedService {
                     throw new RuntimeException("invalid server response : %s".formatted(response.getStatusText()));
                 }))
                 .body(UserInfo.class);
-
     }
 }

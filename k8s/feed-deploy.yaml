@@ -28,6 +28,10 @@ spec:
                 name: mysql-config
             - secretRef:
                 name: mysql-secret
+            - configMapRef:
+                name: kafka-config
+            - secretRef:
+                name: kafka-secret
           resources:
             requests:
               memory: "512Mi"
